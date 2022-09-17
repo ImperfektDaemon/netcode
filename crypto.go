@@ -3,7 +3,7 @@ package netcode
 import (
 	"crypto/rand"
 
-	"golang.org/x/crypto/chacha20poly1305"
+	"github.com/jamesruan/sodium"
 )
 
 // Generates random bytes
@@ -20,21 +20,22 @@ func GenerateKey() ([]byte, error) {
 
 // Encrypts the message in place with the nonce and key and optional additional buffer
 func EncryptAead(message []byte, additional, nonce, key []byte) error {
-	aead, err := chacha20poly1305.New(key)
-	if err != nil {
-		return err
-	}
-	aead.Seal(message[:0], nonce, message, additional)
+	ad := sodium.Bytes(additional)
+	n := sodium.AEADCPNonce { sodium.Bytes(nonce) }
+	k := sodium.AEADCPKey { sodium.Bytes(key) }
+
+	enc := sodium.Bytes(message[:]).AEADCPEncrypt(ad, n, k)
+	copy(message[:cap(message)], enc)
+
 	return nil
 }
 
 // Decrypts the message with the nonce and key and optional additional buffer returning a copy
 // byte slice
 func DecryptAead(message []byte, additional, nonce, key []byte) ([]byte, error) {
-	aead, err := chacha20poly1305.New(key)
-	if err != nil {
-		return nil, err
-	}
-	message, err = aead.Open(message[:0], nonce, message, additional)
-	return message, err
+	ad := sodium.Bytes(additional)
+	n := sodium.AEADCPNonce { sodium.Bytes(nonce) }
+	k := sodium.AEADCPKey { sodium.Bytes(key) }
+
+	return sodium.Bytes(message[:cap(message)]).AEADCPDecrypt(ad, n, k)
 }
